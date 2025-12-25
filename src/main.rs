@@ -92,11 +92,13 @@ fn main() -> Result<()> {
         Commands::New { title } => {
             let path = app.create_note(title)?;
             app.save()?;
+            launch_subl_if_installed(&path);
             println!("{}", path.display());
         }
         Commands::Open { title } => {
             let path = app.open_note(&title)?;
             app.save()?;
+            launch_subl_if_installed(&path);
             println!("{}", path.display());
         }
         Commands::List => {
@@ -799,4 +801,28 @@ fn hash_bytes(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
     format!("{:x}", hasher.finalize())
+}
+
+fn launch_subl_if_installed(path: &PathBuf) {
+    if !is_subl_available() {
+        return;
+    }
+
+    let _ = std::process::Command::new("subl")
+        .arg(path)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn();
+}
+
+fn is_subl_available() -> bool {
+    std::process::Command::new("subl")
+        .arg("--version")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
 }
