@@ -100,12 +100,12 @@ fn main() -> Result<()> {
             println!("{}", path.display());
         }
         Commands::List => {
-            app.snapshot_all_changes()?;
+            let _ = app.snapshot_all_changes()?;
             app.list_notes()?;
             app.save()?;
         }
         Commands::Versions { title } => {
-            app.snapshot_all_changes()?;
+            let _ = app.snapshot_all_changes()?;
             app.list_versions(&title)?;
             app.save()?;
         }
@@ -115,7 +115,7 @@ fn main() -> Result<()> {
             println!("{}", path.display());
         }
         Commands::Search { query } => {
-            app.snapshot_all_changes()?;
+            let _ = app.snapshot_all_changes()?;
             app.search(&query)?;
             app.save()?;
         }
@@ -353,12 +353,15 @@ impl NotesApp {
         Ok(())
     }
 
-    fn snapshot_all_changes(&mut self) -> Result<()> {
+    fn snapshot_all_changes(&mut self) -> Result<Vec<String>> {
         let slugs: Vec<String> = self.index.notes.keys().cloned().collect();
+        let mut updated = Vec::new();
         for slug in slugs {
-            self.snapshot_if_changed(&slug)?;
+            if self.snapshot_if_changed(&slug)? {
+                updated.push(slug);
+            }
         }
-        Ok(())
+        Ok(updated)
     }
 
     fn snapshot_if_changed(&mut self, slug: &str) -> Result<bool> {
@@ -586,7 +589,7 @@ fn run_daemon(paths: DataPaths) -> Result<()> {
             }
             Err(mpsc::RecvTimeoutError::Timeout) => {
                 if pending && last_event.elapsed() >= cooldown {
-                    if let Err(err) = sync_snapshots() {
+                    if let Err(err) = sync_snapshots(&paths) {
                         let _ = log_line(&paths, &format!("sync error: {err}"));
                     }
                     pending = false;
@@ -599,9 +602,15 @@ fn run_daemon(paths: DataPaths) -> Result<()> {
     Ok(())
 }
 
-fn sync_snapshots() -> Result<()> {
+fn sync_snapshots(paths: &DataPaths) -> Result<()> {
     let mut app = NotesApp::load()?;
-    app.snapshot_all_changes()?;
+    let updated = app.snapshot_all_changes()?;
+    if !updated.is_empty() {
+        log_line(
+            paths,
+            &format!("updated {} note(s): {}", updated.len(), updated.join(", ")),
+        )?;
+    }
     app.save()?;
     Ok(())
 }
