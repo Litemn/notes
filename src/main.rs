@@ -24,7 +24,7 @@ struct Cli {
 enum Commands {
     /// Create a new note (optional title)
     New { title: Option<String> },
-    /// Open an existing note by title or slug
+    /// Open an existing note by title or id
     Open { title: String },
     /// List all notes and their latest versions
     List,
@@ -36,6 +36,8 @@ enum Commands {
         #[arg(short, long)]
         version: Option<u32>,
     },
+    /// Delete a note by unique title
+    Delete { title: String },
     /// Search notes by text in the latest version
     Search { query: String },
     /// Run the background daemon that syncs versions
@@ -115,6 +117,11 @@ fn main() -> Result<()> {
             let path = app.rollback(&title, version)?;
             app.save()?;
             println!("{}", path.display());
+        }
+        Commands::Delete { title } => {
+            let deleted = app.delete_note_by_title(&title)?;
+            app.save()?;
+            println!("Deleted note: {}", deleted);
         }
         Commands::Search { query } => {
             let _ = app.snapshot_all_changes()?;
@@ -229,7 +236,7 @@ impl NotesApp {
         for note in notes {
             let path = self.paths.working_file(&note.slug);
             println!(
-                "- {} (slug: {}) versions: {} current: {} path: {}",
+                "- {} (id: {}) versions: {} current: {} path: {}",
                 note.title,
                 note.slug,
                 note.versions.len(),
@@ -332,6 +339,30 @@ impl NotesApp {
         Ok(working_path)
     }
 
+    fn delete_note_by_title(&mut self, title: &str) -> Result<String> {
+        let slug = self.resolve_unique_title_slug(title)?;
+
+        let note = self
+            .index
+            .notes
+            .remove(&slug)
+            .ok_or_else(|| anyhow!("Note not found: {}", title))?;
+
+        let working_path = self.paths.working_file(&slug);
+        if working_path.exists() {
+            fs::remove_file(&working_path)
+                .with_context(|| format!("Failed to remove {}", working_path.display()))?;
+        }
+
+        let versions_dir = self.paths.versions.join(&slug);
+        if versions_dir.exists() {
+            fs::remove_dir_all(&versions_dir)
+                .with_context(|| format!("Failed to remove {}", versions_dir.display()))?;
+        }
+
+        Ok(note.slug)
+    }
+
     fn search(&mut self, query: &str) -> Result<()> {
         let needle = query.to_lowercase();
         let mut matches_found = false;
@@ -344,7 +375,7 @@ impl NotesApp {
                 .unwrap_or_else(|_| String::new());
             if content.to_lowercase().contains(&needle) {
                 matches_found = true;
-                println!("- {} (slug: {})", note.title, note.slug);
+                println!("- {} (id: {})", note.title, note.slug);
             }
         }
 
@@ -446,6 +477,21 @@ impl NotesApp {
             .values()
             .find(|note| note.title.to_lowercase() == id_lower || note.slug == id_lower)
             .map(|note| note.slug.clone())
+    }
+
+    fn resolve_unique_title_slug(&self, title: &str) -> Result<String> {
+        let matches: Vec<&NoteMeta> = self
+            .index
+            .notes
+            .values()
+            .filter(|note| note.slug.to_lowercase() == title)
+            .collect();
+
+        match matches.as_slice() {
+            [] => bail!("Note not found: {}", title),
+            [note] => Ok(note.slug.clone()),
+            _ => bail!("Multiple notes match title: {}", title),
+        }
     }
 }
 

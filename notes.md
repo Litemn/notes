@@ -7,8 +7,8 @@ Notes is a local, file-backed notes database with version control. Every change 
 All data lives in `~/.notes` (or `NOTES_HOME` if set).
 
 - `~/.notes/index.json` — metadata for notes and versions.
-- `~/.notes/versions/<slug>/<NNNNNNN>.md` — immutable version files.
-- `~/.notes/files/<slug>.md` — current working copy for each note.
+- `~/.notes/versions/<id>/<NNNNNNN>.md` — immutable version files.
+- `~/.notes/files/<id>.md` — current working copy for each note.
 
 The working file is what you edit in your editor. Versions are append-only snapshots.
 
