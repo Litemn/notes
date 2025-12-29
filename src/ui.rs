@@ -150,7 +150,7 @@ impl Application for NotesUi {
         Command::none()
     }
 
-    fn view(&self) -> Element<Message> {
+    fn view(&self) -> Element<'_, Message> {
         if self.app.is_none() {
             let error = self
                 .error_message
@@ -252,7 +252,7 @@ impl NotesUi {
         self.load_note(slug)
     }
 
-    fn header(&self) -> Element<Message> {
+    fn header(&self) -> Element<'_, Message> {
         let status = if let Some(error) = self.error_message.as_ref() {
             text(error)
                 .size(13)
@@ -309,7 +309,7 @@ impl NotesUi {
         .into()
     }
 
-    fn list_panel(&self) -> Element<Message> {
+    fn list_panel(&self) -> Element<'_, Message> {
         let mut list: Column<Message> = column![text("Library").size(14).style(TEXT_MUTED)]
             .spacing(8)
             .align_items(Alignment::Start);
@@ -375,7 +375,7 @@ impl NotesUi {
             .into()
     }
 
-    fn editor_panel(&self) -> Element<Message> {
+    fn editor_panel(&self) -> Element<'_, Message> {
         let header = if let Some(slug) = self.selected_slug.as_ref() {
             if let Some(summary) = self.summaries.iter().find(|note| &note.slug == slug) {
                 column![
