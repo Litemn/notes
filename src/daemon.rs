@@ -76,6 +76,7 @@ fn daemon_running(paths: &DataPaths) -> Result<bool> {
 
 pub fn run_daemon(paths: &DataPaths) -> Result<()> {
     paths.ensure_dirs()?;
+    paths.ensure_journal_dirs()?;
     write_pid(&paths)?;
     log_line(&paths, "daemon started")?;
 
@@ -87,6 +88,9 @@ pub fn run_daemon(paths: &DataPaths) -> Result<()> {
     watcher
         .watch(&paths.files, RecursiveMode::NonRecursive)
         .with_context(|| format!("Failed to watch {}", paths.files.display()))?;
+    let _ = watcher.watch(&paths.journal_daily_dir(), RecursiveMode::NonRecursive);
+    let _ = watcher.watch(&paths.journal_weekly_dir(), RecursiveMode::NonRecursive);
+    let _ = watcher.watch(&paths.journal_monthly_dir(), RecursiveMode::NonRecursive);
 
     let cooldown = Duration::from_secs(30);
     let mut pending = false;

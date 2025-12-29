@@ -41,4 +41,46 @@ impl DataPaths {
     pub(crate) fn working_file(&self, slug: &str) -> PathBuf {
         self.files.join(format!("{slug}.md"))
     }
+
+    pub(crate) fn journal_index(&self) -> PathBuf {
+        self.journal_root().join("index.json")
+    }
+
+    pub(crate) fn journal_daily_dir(&self) -> PathBuf {
+        self.journal_root().join("daily")
+    }
+
+    pub(crate) fn journal_weekly_dir(&self) -> PathBuf {
+        self.journal_root().join("weekly")
+    }
+
+    pub(crate) fn journal_monthly_dir(&self) -> PathBuf {
+        self.journal_root().join("monthly")
+    }
+
+    pub(crate) fn daily_file(&self, date: chrono::NaiveDate) -> PathBuf {
+        self.journal_daily_dir()
+            .join(format!("{}.md", date.format("%Y-%m-%d")))
+    }
+
+    pub(crate) fn weekly_file(&self, year: i32, week: u32) -> PathBuf {
+        self.journal_weekly_dir()
+            .join(format!("{year}-W{week:02}.md"))
+    }
+
+    pub(crate) fn monthly_file(&self, year: i32, month: u32) -> PathBuf {
+        self.journal_monthly_dir()
+            .join(format!("{year}-{month:02}.md"))
+    }
+
+    pub(crate) fn ensure_journal_dirs(&self) -> Result<()> {
+        fs::create_dir_all(self.journal_daily_dir())?;
+        fs::create_dir_all(self.journal_weekly_dir())?;
+        fs::create_dir_all(self.journal_monthly_dir())?;
+        Ok(())
+    }
+
+    fn journal_root(&self) -> PathBuf {
+        self.root.join("journal")
+    }
 }

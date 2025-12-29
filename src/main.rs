@@ -1,4 +1,5 @@
 mod app;
+mod bullet;
 mod cli;
 mod completions;
 mod daemon;
@@ -11,6 +12,7 @@ use clap::Parser;
 use cli::{Cli, Commands};
 use completions::print_completions;
 use daemon::{ensure_daemon_running, run_daemon};
+use bullet::{handle_bullet_command, run_interactive};
 use ui::run_ui;
 use utils::launch_subl_if_installed;
 
@@ -20,7 +22,11 @@ fn main() -> Result<()> {
 
     if !matches!(
         cli.command,
-        Commands::Daemon | Commands::Completions { .. } | Commands::Ids
+        Commands::Daemon
+            | Commands::Completions { .. }
+            | Commands::Ids
+            | Commands::Bullet { .. }
+            | Commands::BulletInteractive
     ) {
         ensure_daemon_running(app.paths())?;
     }
@@ -62,6 +68,21 @@ fn main() -> Result<()> {
             let _ = app.snapshot_all_changes()?;
             app.search(&query)?;
             app.save()?;
+        }
+        Commands::Bullet {
+            action,
+            text,
+            task,
+            event,
+            note,
+            date,
+            weekly,
+            monthly,
+        } => {
+            handle_bullet_command(action, text, task, event, note, date, weekly, monthly)?;
+        }
+        Commands::BulletInteractive => {
+            run_interactive()?;
         }
         Commands::Ui => {
             run_ui()?;
