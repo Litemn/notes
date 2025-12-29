@@ -35,6 +35,15 @@ pub struct NotesApp {
     index: Index,
 }
 
+#[derive(Clone)]
+pub struct NoteSummary {
+    pub title: String,
+    pub slug: String,
+    pub updated_at: DateTime<Utc>,
+    pub versions: usize,
+    pub current_version: u32,
+}
+
 impl NotesApp {
     pub fn load() -> Result<Self> {
         let paths = DataPaths::new()?;
@@ -63,6 +72,11 @@ impl NotesApp {
     }
 
     pub fn create_note(&mut self, title: Option<String>) -> Result<PathBuf> {
+        let (_, path) = self.create_note_with_slug(title)?;
+        Ok(path)
+    }
+
+    pub fn create_note_with_slug(&mut self, title: Option<String>) -> Result<(String, PathBuf)> {
         let now = Utc::now();
         let title = title.unwrap_or_else(|| format!("note-{}", now.format("%Y%m%d-%H%M%S")));
         let mut slug = slugify(&title);
@@ -114,7 +128,7 @@ impl NotesApp {
         };
 
         self.index.notes.insert(slug.clone(), meta);
-        Ok(working_path)
+        Ok((slug, working_path))
     }
 
     pub fn open_note(&mut self, identifier: &str) -> Result<PathBuf> {
@@ -149,6 +163,21 @@ impl NotesApp {
         }
 
         Ok(())
+    }
+
+    pub fn note_summaries(&self) -> Vec<NoteSummary> {
+        let mut notes: Vec<&NoteMeta> = self.index.notes.values().collect();
+        notes.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+        notes
+            .into_iter()
+            .map(|note| NoteSummary {
+                title: note.title.clone(),
+                slug: note.slug.clone(),
+                updated_at: note.updated_at,
+                versions: note.versions.len(),
+                current_version: note.current_version,
+            })
+            .collect()
     }
 
     pub fn list_versions(&mut self, identifier: &str) -> Result<()> {
@@ -352,6 +381,20 @@ impl NotesApp {
         note.working_hash = Some(hash);
 
         Ok(true)
+    }
+
+    pub fn read_working_content(&mut self, slug: &str) -> Result<String> {
+        self.ensure_working_copy_exists(slug)?;
+        let working_path = self.paths.working_file(slug);
+        fs::read_to_string(&working_path)
+            .with_context(|| format!("Failed to read {}", working_path.display()))
+    }
+
+    pub fn write_working_content(&mut self, slug: &str, content: &str) -> Result<()> {
+        self.ensure_working_copy_exists(slug)?;
+        let working_path = self.paths.working_file(slug);
+        fs::write(&working_path, content)
+            .with_context(|| format!("Failed to write {}", working_path.display()))
     }
 
     fn ensure_working_copy_exists(&self, slug: &str) -> Result<()> {

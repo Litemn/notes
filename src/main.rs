@@ -3,6 +3,7 @@ mod cli;
 mod completions;
 mod daemon;
 mod paths;
+mod ui;
 mod utils;
 
 use anyhow::Result;
@@ -10,13 +11,17 @@ use clap::Parser;
 use cli::{Cli, Commands};
 use completions::print_completions;
 use daemon::{ensure_daemon_running, run_daemon};
+use ui::run_ui;
 use utils::launch_subl_if_installed;
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let mut app = app::NotesApp::load()?;
 
-    if !matches!(cli.command, Commands::Daemon | Commands::Completions { .. } | Commands::Ids) {
+    if !matches!(
+        cli.command,
+        Commands::Daemon | Commands::Completions { .. } | Commands::Ids
+    ) {
         ensure_daemon_running(app.paths())?;
     }
 
@@ -57,6 +62,9 @@ fn main() -> Result<()> {
             let _ = app.snapshot_all_changes()?;
             app.search(&query)?;
             app.save()?;
+        }
+        Commands::Ui => {
+            run_ui()?;
         }
         Commands::Daemon => {
             run_daemon(app.paths())?;

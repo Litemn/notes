@@ -27,6 +27,8 @@ pub enum Commands {
     Delete { title: String },
     /// Search notes by text in the latest version
     Search { query: String },
+    /// Launch the desktop UI
+    Ui,
     /// Run the background daemon that syncs versions
     Daemon,
     /// Generate shell completions
